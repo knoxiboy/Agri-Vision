@@ -115,6 +115,83 @@
     <div class="print-frame no-print"></div>
 
     <!-- Navigation -->
+ add-active-navbar-highlight-effect
+<nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <a href="/" class="nav-brand">
+            <i class="fas fa-seedling"></i>
+            <span>Agri-Vision</span>
+        </a>
+
+        <ul class="nav-menu">
+
+            <li>
+                <a href="/"
+                   class="nav-link {% if request.path == '/' %}active-nav{% endif %}">
+                   Home
+                </a>
+            </li>
+
+            <li>
+                <a href="/analyze"
+                   class="nav-link {% if request.path == '/analyze' %}active-nav{% endif %}">
+                   Analyze
+                </a>
+            </li>
+
+            <li>
+                <a href="/comparison"
+                   class="nav-link {% if request.path == '/comparison' %}active-nav{% endif %}">
+                   Field Comparison
+                </a>
+            </li>
+
+            <li>
+                <a href="/demo"
+                   class="nav-link {% if request.path == '/demo' %}active-nav{% endif %}">
+                   Demo
+                </a>
+            </li>
+
+            <li>
+                <a href="/tutorials"
+                   class="nav-link {% if request.path == '/tutorials' %}active-nav{% endif %}">
+                   Tutorials
+                </a>
+            </li>
+
+            <li>
+                <a href="/stories"
+                   class="nav-link {% if request.path == '/stories' %}active-nav{% endif %}">
+                   Stories
+                </a>
+            </li>
+
+            <li>
+                <a href="/support"
+                   class="nav-link {% if request.path == '/support' %}active-nav{% endif %}">
+                   Support
+                </a>
+            </li>
+
+            <li>
+                <button id="theme-toggle"
+                        class="theme-toggle-btn"
+                        aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </li>
+
+            <li>
+                <a href="/analyze" class="btn btn-primary">
+                    Get Started
+                </a>
+            </li>
+
+        </ul>
+    </div>
+</nav>
+=======
     <nav class="navbar" id="navbar">
         <div class="nav-container">
             <a href="/" class="nav-brand">
@@ -138,6 +215,7 @@
             </ul>
         </div>
     </nav>
+ main
 
     <!-- Main Content -->
     <main>

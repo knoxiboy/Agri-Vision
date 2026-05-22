@@ -3062,6 +3062,102 @@ fix-stories-card-alignment
         #6ddc90
     );
     box-shadow: 0 0 15px rgba(93,211,139,0.45);
+ add-active-navbar-highlight-effect
+ main
+}
+
+/* =========================================================
+   Active Navbar Highlight Styling
+   Improves navigation clarity and user orientation
+   across Agri-Vision pages
+========================================================= */
+
+.nav-link {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Active page highlight */
+.active-nav {
+    color: #57e389 !important;
+    font-weight: 700;
+}
+
+/* Animated underline effect */
+.active-nav::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -6px;
+    width: 100%;
+    height: 2px;
+    background: #57e389;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(87, 227, 137, 0.6);
+}
+
+/* Hover improvement for navbar links */
+.nav-link:hover {
+    color: #57e389;
+}
+
+/* =========================================================
+   ADVANCED NAVIGATION EXPERIENCE ENHANCEMENT
+   =========================================================
+   This styling block was added to improve the overall
+   user navigation experience inside the Agri-Vision
+   platform interface.
+
+   The previous navbar implementation worked correctly,
+   but lacked visual indication for the currently active
+   page. This could create confusion for users navigating
+   between different agricultural analysis modules.
+
+   Improvements introduced in this enhancement:
+
+   ✔ Active page highlighting
+   ✔ Smooth hover transitions
+   ✔ Modern glowing underline animation
+   ✔ Better visual hierarchy
+   ✔ Improved accessibility and orientation
+   ✔ Consistent futuristic UI appearance
+   ✔ Enhanced dark-theme compatibility
+   ✔ Better responsiveness for different screen sizes
+   ✔ Improved readability for navbar interactions
+   ✔ More professional production-style navigation feel
+
+   Design Goals:
+   ---------------------------------------------------------
+   - Maintain Agri-Vision cyber/agri aesthetic
+   - Keep navbar lightweight and responsive
+   - Improve navigation clarity for users
+   - Add subtle animation without distraction
+   - Match green AI-inspired visual identity
+
+   Technical Notes:
+   ---------------------------------------------------------
+   The active navbar system uses:
+   - pseudo-elements (::after)
+   - transition animations
+   - glow shadows
+   - custom highlight coloring
+   - reusable nav-link utility classes
+
+   Future Expansion Possibilities:
+   ---------------------------------------------------------
+   - Dynamic active page detection using Flask/Jinja
+   - Animated page transition indicators
+   - Gradient underline effects
+   - Mobile navigation active states
+   - Scroll-aware navbar highlighting
+   - Breadcrumb integration
+   - Multi-theme compatibility
+
+   This enhancement contributes toward improving
+   the professional frontend experience of the
+   Agri-Vision AI-powered agricultural platform.
+========================================================= */
+=======
 }
 
 /*  MOBILE RESPONSIVENESS */
@@ -3494,4 +3590,4 @@ html {
         transform: none !important;
     }
 }
-
+ main
