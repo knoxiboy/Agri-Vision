@@ -341,6 +341,8 @@ def load_models() -> Tuple[Optional[torch.nn.Module], Optional[YOLO]]:
 
 
 def ensure_models_loaded() -> None:
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return
     model_manager.load_models()
 
 
