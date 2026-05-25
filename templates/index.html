@@ -1186,5 +1186,30 @@
 
         <!-- Chatbot Controller -->
         <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+        <button id="scrollTopBtn">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        <script>
+            const scrollBtn =
+                document.getElementById("scrollTopBtn");
+                window.addEventListener("scroll", () => {
+                    if(window.scrollY > 300){
+                    
+                        scrollBtn.style.display = "block";
+                    
+                    }else{
+                    
+                        scrollBtn.style.display = "none";
+                    }
+            });
+
+            scrollBtn.addEventListener("click", () => {
+                window.scrollTo({
+                    top:0,
+                    behavior:"smooth"
+                });
+            });
+
+</script>
 </body>
 </html>
