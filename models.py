@@ -1,11 +1,84 @@
 """
-Database models for batch processing
+Database models for batch processing and user authentication
 """
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 import uuid
 
 db = SQLAlchemy()
+
+
+class User(UserMixin, db.Model):
+    """User model for authentication"""
+    __tablename__ = 'users'
+    
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    full_name = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), default='farmer')  # farmer, researcher, admin
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    analyses = db.relationship('AnalysisHistory', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and set password"""
+        from bcrypt import hashpw, gensalt
+        self.password_hash = hashpw(password.encode('utf-8'), gensalt()).decode('utf-8')
+    
+    def check_password(self, password):
+        """Check if password matches hash"""
+        from bcrypt import checkpw, hashpw
+        return checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+    
+    def is_admin(self):
+        """Check if user is admin"""
+        return self.role == 'admin'
+    
+    def is_researcher(self):
+        """Check if user is researcher or admin"""
+        return self.role in ['researcher', 'admin']
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'full_name': self.full_name,
+            'role': self.role,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'is_active': self.is_active
+        }
+
+
+class AnalysisHistory(db.Model):
+    """Store individual user analyses"""
+    __tablename__ = 'analysis_history'
+    
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
+    image_path = db.Column(db.String(500), nullable=True)
+    disease_result = db.Column(db.JSON, nullable=True)
+    growth_result = db.Column(db.JSON, nullable=True)
+    confidence = db.Column(db.Float, nullable=True)
+    health_score = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'image_path': self.image_path,
+            'disease_result': self.disease_result,
+            'growth_result': self.growth_result,
+            'confidence': self.confidence,
+            'health_score': self.health_score,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
 
 
 class BatchJob(db.Model):

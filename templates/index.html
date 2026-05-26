@@ -301,21 +301,27 @@
             </a>
             <ul class="nav-menu">
                 <li><a href="/">Home</a></li>
-                <li><a href="/analyze">Analyze</a></li>
-                <li><a href="/batch" style="font-weight: bold; color: #667eea;">📦 Batch</a></li>
-                <li><a href="/comparison">Field Comparison</a></li>
-
-                <li><a href="/demo">Demo</a></li>
-                <li><a href="/tutorials">Tutorials</a></li>
-                <li><a href="/stories">Stories</a></li>
-                <li><a href="/history">History</a></li>
-                <li><a href="/model-admin" style="font-weight: bold; color: #667eea;">🤖 Admin</a></li>
+                {% if current_user.is_authenticated %}
+                    <li><a href="/analyze">Analyze</a></li>
+                    <li><a href="/batch" style="font-weight: bold; color: #667eea;">📦 Batch</a></li>
+                    <li><a href="/history">History</a></li>
+                    <li><a href="/profile">Profile</a></li>
+                    {% if current_user.is_researcher() %}
+                        <li><a href="/model-admin" style="font-weight: bold; color: #667eea;">🤖 Admin</a></li>
+                    {% endif %}
+                    <li><a href="/logout" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                {% else %}
+                    <li><a href="/demo">Demo</a></li>
+                    <li><a href="/tutorials">Tutorials</a></li>
+                    <li><a href="/stories">Stories</a></li>
+                    <li><a href="/login" class="btn btn-primary">Login</a></li>
+                    <li><a href="/register" class="btn btn-primary" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">Sign Up</a></li>
+                {% endif %}
                 <li>
                     <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode">
                         <i class="fas fa-moon"></i>
                     </button>
                 </li>
-                <li><a href="/analyze" class="btn btn-primary">Get Started</a></li>
             </ul>
         </div>
     </nav>

@@ -6,6 +6,7 @@ import hashlib
 import logging
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import os
 import random
 import re
@@ -55,6 +56,18 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///agr
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 from models import db
 db.init_app(app)
+
+# --- Login Manager Configuration ---
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+login_manager.login_message_category = 'info'
+
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(user_id)
 
 # --- Security Configuration ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -880,7 +893,11 @@ def stories():
 
 
 @app.route("/model-admin")
+@login_required
 def admin_dashboard():
+    if not current_user.is_researcher():
+        flash('Access denied. Researchers and Admins only.', 'danger')
+        return redirect(url_for('index'))
     return render_template("admin.html")
 
 
@@ -1175,6 +1192,7 @@ def health():
 
 
 @app.route("/analyze", methods=["GET", "POST"])
+@login_required
 def analyze():
     if request.method == "POST":
         if "file" not in request.files:
@@ -1777,6 +1795,7 @@ def api_batch_results(job_id):
 
 
 @app.route("/batch", methods=["GET", "POST"])
+@login_required
 def batch_upload_page():
     """Batch upload page"""
     if request.method == 'POST':
@@ -1785,9 +1804,117 @@ def batch_upload_page():
 
 
 @app.route("/batch/results/<job_id>")
+@login_required
 def batch_results_page(job_id):
     """Batch results page"""
     return render_template('batch_results.html', job_id=job_id)
+
+
+# --- Authentication Routes ---
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Login page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = request.form.get('remember')
+        
+        from models import User
+        user = User.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            if not user.is_active:
+                flash('Your account has been deactivated. Please contact support.', 'danger')
+                return render_template('login.html')
+            
+            login_user(user, remember=remember)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('index'))
+        else:
+            flash('Invalid email or password', 'danger')
+    
+    return render_template('login.html')
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Registration page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        role = request.form.get('role', 'farmer')
+        
+        # Validation
+        if not full_name or not email or not password:
+            flash('All fields are required', 'danger')
+            return render_template('register.html')
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'danger')
+            return render_template('register.html')
+        
+        if len(password) < 8:
+            flash('Password must be at least 8 characters', 'danger')
+            return render_template('register.html')
+        
+        from models import User
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered', 'danger')
+            return render_template('register.html')
+        
+        # Create user
+        user = User(
+            email=email,
+            full_name=full_name,
+            role=role
+        )
+        user.set_password(password)
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Account created successfully! Please login.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('register.html')
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    """Logout user"""
+    logout_user()
+    flash('You have been logged out', 'info')
+    return redirect(url_for('login'))
+
+
+@app.route("/profile")
+@login_required
+def profile():
+    """User profile page"""
+    return render_template('profile.html')
+
+
+@app.route("/forgot_password", methods=["GET", "POST"])
+def forgot_password():
+    """Forgot password page"""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        flash('Password reset link sent to your email (demo feature)', 'info')
+        return redirect(url_for('login'))
+    return render_template('login.html')  # Reuse login template for now
 
 
 if __name__ == '__main__':
