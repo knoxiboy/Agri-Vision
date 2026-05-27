@@ -45,7 +45,6 @@
         "model_type": "yolo",
         "path": "models/cotton_crop_growth_stage_prediction/best.pt",
         "accuracy": 0.6006,
-        "training_date": "2026-05-27T12:58:48.371314",
         "training_date": "2026-05-27T15:12:58.502811",
         "dataset_version": "v1.0",
         "parameters": 0,
@@ -63,6 +62,5 @@
   },
   "ab_test_enabled": true,
   "rollback_threshold": 0.75,
-  "last_updated": "2026-05-27T12:58:48.372775"
   "last_updated": "2026-05-27T15:12:58.508164"
 }

@@ -2596,12 +2596,13 @@ def api_disease_prediction(disease_name):
 
 @app.route("/api/historical-patterns")
 def api_historical_patterns():
-    """API endpoint to analyze historical disease patterns"""
-    from models import DiseaseOccurrence
+    """API endpoint to analyze historical disease patterns with ML learning"""
+    from models import DiseaseOccurrence, WeatherData
     from services.disease_prediction_service import HistoricalPatternAnalyzer
     
     location = request.args.get('location', '')
     disease_id = request.args.get('disease_id', type=int)
+    include_weather = request.args.get('include_weather', 'false').lower() == 'true'
     
     try:
         query = DiseaseOccurrence.query
@@ -2615,21 +2616,170 @@ def api_historical_patterns():
         occurrences = query.order_by(DiseaseOccurrence.occurrence_date.desc()).limit(1000).all()
         occurrences_data = [o.to_dict() for o in occurrences]
         
+        # Get weather data if requested
+        weather_data = None
+        if include_weather:
+            weather_query = WeatherData.query
+            if location:
+                weather_query = weather_query.filter(WeatherData.location_name.ilike(f'%{location}%'))
+            weather_records = weather_query.limit(1000).all()
+            weather_data = [w.to_dict() for w in weather_records]
+        
+        # Initialize and train the analyzer
         analyzer = HistoricalPatternAnalyzer()
+        analyzer.train(occurrences_data, weather_data)
         
-        # Analyze seasonal patterns
-        seasonal_patterns = analyzer.analyze_seasonal_patterns(occurrences_data)
-        
-        # Analyze regional patterns
-        regional_patterns = analyzer.get_regional_patterns(occurrences_data)
+        # Get comprehensive insights
+        insights = analyzer.get_insights()
         
         return jsonify({
-            'seasonal_patterns': seasonal_patterns,
-            'regional_patterns': regional_patterns,
-            'total_occurrences': len(occurrences_data)
+            'insights': insights,
+            'total_occurrences': len(occurrences_data),
+            'weather_data_available': weather_data is not None and len(weather_data) > 0
         })
     except Exception as e:
         logger.error(f"Error analyzing historical patterns: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/historical-predict")
+def api_historical_predict():
+    """API endpoint to predict disease risk based on historical patterns"""
+    from models import DiseaseOccurrence, WeatherData
+    from services.disease_prediction_service import HistoricalPatternAnalyzer
+    from datetime import datetime
+    
+    location = request.args.get('location', '')
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+    
+    if not location:
+        return jsonify({'error': 'Location required'}), 400
+    
+    try:
+        # Get historical occurrences
+        occurrences = DiseaseOccurrence.query.filter(
+            DiseaseOccurrence.location_name.ilike(f'%{location}%')
+        ).order_by(DiseaseOccurrence.occurrence_date.desc()).limit(1000).all()
+        occurrences_data = [o.to_dict() for o in occurrences]
+        
+        # Get historical weather data
+        weather_records = WeatherData.query.filter(
+            WeatherData.location_name.ilike(f'%{location}%')
+        ).limit(1000).all()
+        weather_data = [w.to_dict() for w in weather_records]
+        
+        # Train analyzer
+        analyzer = HistoricalPatternAnalyzer()
+        analyzer.train(occurrences_data, weather_data)
+        
+        # Get current month
+        current_month = datetime.now().month
+        
+        # Get current weather if coordinates provided
+        current_weather = None
+        if lat and lon:
+            from services.weather_service import get_current_weather
+            current_weather_data = get_current_weather(lat, lon)
+            if current_weather_data:
+                current_weather = {
+                    'temperature_avg': current_weather_data.get('temperature', 0),
+                    'humidity': current_weather_data.get('humidity', 0),
+                    'rainfall': current_weather_data.get('rainfall', 0)
+                }
+        
+        # Predict from history
+        predictions = analyzer.predict_from_history(location, current_month, current_weather)
+        
+        return jsonify({
+            'location': location,
+            'current_month': current_month,
+            'predictions': predictions,
+            'trained_on_occurrences': len(occurrences_data)
+        })
+    except Exception as e:
+        logger.error(f"Error predicting from history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/historical/peak-season/<disease_name>")
+def api_peak_season(disease_name):
+    """API endpoint to get peak season for a specific disease"""
+    from models import DiseaseOccurrence
+    from services.disease_prediction_service import HistoricalPatternAnalyzer
+    
+    try:
+        occurrences = DiseaseOccurrence.query.limit(1000).all()
+        occurrences_data = [o.to_dict() for o in occurrences]
+        
+        analyzer = HistoricalPatternAnalyzer()
+        analyzer.train(occurrences_data)
+        
+        peak_season = analyzer.get_peak_season(disease_name)
+        
+        if not peak_season:
+            return jsonify({'error': 'Disease not found or insufficient data'}), 404
+        
+        return jsonify(peak_season)
+    except Exception as e:
+        logger.error(f"Error getting peak season: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/historical/regional-ranking")
+def api_regional_ranking():
+    """API endpoint to get disease risk ranking for a region"""
+    from models import DiseaseOccurrence
+    from services.disease_prediction_service import HistoricalPatternAnalyzer
+    
+    location = request.args.get('location', '')
+    
+    if not location:
+        return jsonify({'error': 'Location required'}), 400
+    
+    try:
+        occurrences = DiseaseOccurrence.query.filter(
+            DiseaseOccurrence.location_name.ilike(f'%{location}%')
+        ).limit(1000).all()
+        occurrences_data = [o.to_dict() for o in occurrences]
+        
+        analyzer = HistoricalPatternAnalyzer()
+        analyzer.train(occurrences_data)
+        
+        ranking = analyzer.get_regional_risk_ranking(location)
+        
+        return jsonify({
+            'location': location,
+            'ranking': ranking
+        })
+    except Exception as e:
+        logger.error(f"Error getting regional ranking: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route("/api/historical/disease-trend/<disease_name>")
+def api_disease_trend(disease_name):
+    """API endpoint to get disease trend analysis"""
+    from models import DiseaseOccurrence
+    from services.disease_prediction_service import HistoricalPatternAnalyzer
+    
+    months = request.args.get('months', 12, type=int)
+    
+    try:
+        occurrences = DiseaseOccurrence.query.limit(1000).all()
+        occurrences_data = [o.to_dict() for o in occurrences]
+        
+        analyzer = HistoricalPatternAnalyzer()
+        analyzer.train(occurrences_data)
+        
+        trend = analyzer.get_disease_trend(disease_name, months)
+        
+        if not trend or 'trend' not in trend:
+            return jsonify({'error': 'Disease not found or insufficient data'}), 404
+        
+        return jsonify(trend)
+    except Exception as e:
+        logger.error(f"Error getting disease trend: {e}")
         return jsonify({'error': str(e)}), 500
 
 
