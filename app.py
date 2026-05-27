@@ -2127,12 +2127,43 @@ def reports():
     return render_template('reports.html')
 
 
+@app.route("/api/analyses")
+@login_required
+def api_analyses():
+    """API endpoint to get list of analyses for report generation"""
+    from models import AnalysisHistory
+    
+    # Get analyses for current user
+    if current_user.is_researcher():
+        analyses = AnalysisHistory.query.order_by(AnalysisHistory.created_at.desc()).limit(50).all()
+    else:
+        analyses = AnalysisHistory.query.filter_by(user_id=current_user.id).order_by(AnalysisHistory.created_at.desc()).limit(50).all()
+    
+    analyses_list = []
+    for a in analyses:
+        disease = a.disease_result.get('predicted_class', 'unknown') if a.disease_result else 'unknown'
+        analyses_list.append({
+            'id': a.id,
+            'disease': disease.replace('_', ' ').title(),
+            'date': a.created_at.strftime('%Y-%m-%d %H:%M'),
+            'health_score': a.health_score
+        })
+    
+    return jsonify({'analyses': analyses_list})
+
+
 @app.route("/api/generate-report/<analysis_id>")
 @login_required
 def generate_report(analysis_id):
     """Generate PDF report for a single analysis"""
     from models import AnalysisHistory
-    from services.report_service import ReportGenerator
+    from io import BytesIO
+    
+    try:
+        from services.report_service import ReportGenerator
+    except ImportError as e:
+        logger.error(f"Failed to import ReportGenerator: {e}")
+        return jsonify({'error': f'Report service not available: {str(e)}'}), 500
     
     analysis = AnalysisHistory.query.get(analysis_id)
     if not analysis:
@@ -2167,6 +2198,8 @@ def generate_report(analysis_id):
         )
     except Exception as e:
         logger.error(f"Error generating report: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -2175,9 +2208,14 @@ def generate_report(analysis_id):
 def generate_summary_report():
     """Generate summary PDF report for all analyses"""
     from models import AnalysisHistory
-    from services.report_service import ReportGenerator
     from datetime import datetime, timedelta
     from io import BytesIO
+    
+    try:
+        from services.report_service import ReportGenerator
+    except ImportError as e:
+        logger.error(f"Failed to import ReportGenerator: {e}")
+        return jsonify({'error': f'Report service not available: {str(e)}'}), 500
     
     # Get date range
     days = request.args.get('days', 30, type=int)
@@ -2213,6 +2251,8 @@ def generate_summary_report():
         )
     except Exception as e:
         logger.error(f"Error generating summary report: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
