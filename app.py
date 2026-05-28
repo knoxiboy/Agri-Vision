@@ -1171,8 +1171,11 @@ def dashboard():
 
 
 @app.route("/history")
+@login_required
 def history():
-    return render_template("history.html")
+    from models import AnalysisHistory
+    records = AnalysisHistory.query.filter_by(user_id=current_user.id).order_by(AnalysisHistory.created_at.desc()).all()
+    return render_template("history.html", history_records=records)
 
 
 @app.route("/health")
@@ -1236,6 +1239,24 @@ def analyze():
 
             predicted_class = results.get("disease", {}).get("predicted_class", "")
             disease_info = disease_info_map.get(predicted_class, {})
+
+            from models import AnalysisHistory, db
+            if current_user.is_authenticated:
+                import time
+                unique_filename = f"{int(time.time())}_{safe_filename}"
+                file_path = os.path.join("static", "uploads", unique_filename)
+                cv2.imwrite(file_path, image)
+                
+                history_entry = AnalysisHistory(
+                    user_id=current_user.id,
+                    image_path=unique_filename,
+                    disease_result=results.get("disease"),
+                    growth_result=results.get("growth"),
+                    confidence=results.get("disease", {}).get("confidence"),
+                    health_score=results.get("disease", {}).get("health_score")
+                )
+                db.session.add(history_entry)
+                db.session.commit()
 
             return render_template(
                 "results.html",

@@ -15,6 +15,7 @@ import app
 @pytest.fixture
 def client():
     app.app.config["TESTING"] = True
+    app.app.config["LOGIN_DISABLED"] = True
     app.app.config["UPLOAD_FOLDER"] = "./static/uploads"
     with app.app.test_client() as client:
         yield client
