@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agri-Vision</title>
     <script>
         (function() {
@@ -11,18 +12,75 @@
                 if (localTheme === 'dark' || (!localTheme && sysTheme)) {
                     document.documentElement.setAttribute('data-theme', 'dark');
                 }
+                
+                // SSR-safe inline initialization for language
+                var localLang = localStorage.getItem('i18n_lang');
+                if (localLang) {
+                    document.documentElement.lang = localLang;
+                }
             } catch (e) {}
         })();
     </script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/animations.js') }}" defer></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        window.refreshIcons = function() {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        };
+        document.addEventListener('DOMContentLoaded', () => {
+            window.refreshIcons();
+            const observer = new MutationObserver((mutations) => {
+                let hasNewIcons = false;
+                mutations.forEach(m => {
+                    m.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) {
+                            if (node.tagName === 'I' && node.hasAttribute('data-lucide')) hasNewIcons = true;
+                            if (node.querySelector && node.querySelector('i[data-lucide]')) hasNewIcons = true;
+                        }
+                    });
+                });
+                if (hasNewIcons) {
+                    observer.disconnect();
+                    window.refreshIcons();
+                    observer.observe(document.body, { childList: true, subtree: true });
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    </script>
 </head>
 <body>
     <header>
         <h1>Agri-Vision</h1>
+        <nav>
+            <a href="/" data-i18n="navbar.home">Home</a>
+            <a href="/analyze" data-i18n="navbar.analyze">Analyze</a>
+            <a href="/demo" data-i18n="navbar.demo">Demo</a>
+            <a href="/tutorials" data-i18n="navbar.tutorials">Tutorials</a>
+            <a href="/stories" data-i18n="navbar.stories">Stories</a>
+            <a href="/model-admin" style="font-weight: bold; color: #667eea;" data-i18n="navbar.admin">🤖 Admin</a>
+            
+            <div class="lang-selector-container">
+                <i data-lucide="globe"></i>
+                <select id="lang-selector" class="lang-selector" aria-label="Select Language">
+                    <option value="en">English</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="gu">ગુજરાતી</option>
+                    <option value="mr">मराठी</option>
+                    <option value="ta">தமிழ்</option>
+                    <option value="te">తెలుగు</option>
+                    <option value="pa">ਪੰਜਾਬੀ</option>
+                </select>
+            </div>
+        </nav>
         <hr/>
     </header>
-    <main>
+    <main id="swup" class="transition-fade">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <ul id="alert-list">
@@ -38,5 +96,10 @@
         <hr>
         <p style="font-size:0.95em">Agri-Vision &copy; 2026</p>
     </footer>
+    
+    <!-- Page Transitions Dependencies -->
+    <script src="https://unpkg.com/swup@4"></script>
+    <script src="https://unpkg.com/@swup/progress-plugin@3"></script>
+    <script src="{{ url_for('static', filename='js/page-transitions.js') }}" defer></script>
 </body>
 </html>

@@ -68,6 +68,7 @@ Agri-Vision uses deep learning and computer vision techniques to:
 - [Tech Stack](#️-tech-stack)
 - [Dataset Information](#-dataset-information)
 - [Model Information](#-model-information)
+- [Model Performance & Benchmarking](docs/model-benchmarking.md)
 - [Project Structure](#-project-structure)
 - [Setup & Execution](#-setup--execution)
 - [API Reference](#️-api-reference)
@@ -79,7 +80,7 @@ Agri-Vision uses deep learning and computer vision techniques to:
 
 ## ✨ Features
 
-- 🌿 **Growth Phase Detection** (4 stages for cotton, 🍅 Tomato coming soon)
+- 🌿 **Growth Phase Detection** (Supported for cotton and 🍅 Tomato)
 - 💚 **Health Assessment** (disease & damage detection)
 - 🤖 **AI-Powered Analysis** using deep learning
 - 🌐 **Web Interface** (Flask-based)
@@ -117,7 +118,7 @@ https://universe.roboflow.com/p-project-ebvkg/cotton-boll-growth-detection/datas
 
 ### Crop Disease Classification Dataset (for cotton crop)  
 
-https://universe.roboflow.com/deep-learning-nygzt/cotton-crop-dieases/browse?queryText=&pageSize=50&startingIndex=0&browseQuery=true
+https://universe.roboflow.com/deep-learning-nygzt/tomato-crop-diseases
 
 ## Growth Phases Detected
 
@@ -151,8 +152,7 @@ https://www.kaggle.com/datasets/arjunsudheer326/tomato-plant-stages-dataset
 
 ### Crop Disease Classification Dataset (for tomato crop)  
 
-https://universe.roboflow.com/deep-learning-nygzt/cotton-crop-dieases/browse?queryText=&pageSize=50&startingIndex=0&browseQuery=true
-
+https://universe.roboflow.com/deep-learning-nygzt/tomato-crop-diseases
 ## Growth Phases Detected
 
 - Early Vegetative
@@ -173,8 +173,50 @@ https://universe.roboflow.com/deep-learning-nygzt/cotton-crop-dieases/browse?que
 - Yellow leaf curl virus
 
 ---
-# 🤖 Model Information
+## For Potato Crop
+The datasets used for training the potato disease classification model were taken from kaggle
+
+## Crop disease dataset (for potato)
+https://www.kaggle.com/datasets/faysalmiah1721758/potato-dataset
+
+## Health Issues Identified
+- Early Blight
+- Late Blight
+- Healthy Leaf
+
+## setup 
+Download the dataset from the given URL and make sure to split the it into training data, testing data and validation data.
 ---
+
+## Environment
+The app requires a strong `SECRET_KEY` when running in production. This key signs session cookies and other secrets — keep it private.
+
+To generate a key:
+
+```
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Create a `.env` file in the project root and add at least:
+
+```
+SECRET_KEY=your-generated-secret
+OPENWEATHER_API_KEY=your-openweather-key
+```
+
+Run the app in production mode locally:
+
+```
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+export FLASK_ENV=production
+python -m flask run --host=0.0.0.0 --port=5000
+```
+
+During development the app will create a temporary key if `SECRET_KEY` is not set — do not use that value in production.
+
+---
+# 🤖 Model Information
+<!-- --- -->
 ## For cotton crop
 ## Growth Stage Prediction Model
 Model Used - YOLOv8   
@@ -189,9 +231,13 @@ Model Used - ResNet50
 
 Parameters - 25.6M
 
+### Grad-CAM Explainability
+Successful cotton disease classifications can include a Grad-CAM heatmap overlay generated from the final ResNet50 convolutional block (`layer4[-1]`). Generated visualizations are saved under `static/generated/gradcam/` and surfaced in the results page and API responses when available.
+
 
 # 📊 Model Results
 Check training curves and result snapshots inside the `results/` directory.
+For confusion matrices, benchmark tables, and reproducibility notes, see [Model Performance & Benchmarking](docs/model-benchmarking.md).
 
 ## Metrics for YOLOv8 (Growth Stage Prediction)
 mAP50 - 60.06%  
@@ -267,26 +313,112 @@ F1 Score - 100%
 ```tree
 Agri-Vision/
 │
-├── results/                        # Stores output results and visualizations
-│   └── training_history.png
+├── app/
+│   ├── __init__.py
+│   │
+│   ├── routes/
+│   │   ├── auth.py
+│   │   ├── admin.py
+│   │   ├── dashboard.py
+│   │   ├── disease.py
+│   │   ├── reports.py
+│   │   ├── weather.py
+│   │   └── yield_prediction.py
+│   │
+│   ├── services/
+│   │   ├── disease_prediction_service.py
+│   │   ├── recommendation_engine.py
+│   │   ├── report_service.py
+│   │   ├── weather_service.py
+│   │   ├── yield_service.py
+│   │   ├── image_quality.py
+│   │   └── gradcam.py
+│   │
+│   ├── database/
+│   │   └── models.py
+│   │
+│   ├── templates/
+│   └── static/
 │
-├── static/                         # Static assets
-│   ├── css/
-│   ├── uploads/
-│   └── favicon.png
+├── ai_models/
+│   ├── cotton/
+│   ├── potato/
+│   ├── tomato/
+│   └── growth_stage/
 │
-├── templates/                      # Flask HTML templates
-│   ├── index.html
-│   ├── results.html
-│   └── upload.html
+├── training/
+│   ├── notebooks/
+│   │   ├── cotton_crop_disease_prediction.ipynb
+│   │   ├── potato_crop_disease_classification.ipynb
+│   │   ├── tomato_crop_disease_classification.ipynb
+│   │   ├── tomato_growth_stages_classification.ipynb
+│   │   └── cotton_growth_stage_prediction.ipynb
+│   │
+│   ├── train.py
+│   ├── model_config.json
+│   └── model_registry.py
 │
-├── .env                            # Environment variables (create manually)
-├── .gitignore
-├── app.py                          # Main Flask application
-├── LICENSE
-├── README.md
+├── database/
+│   ├── create_admin.py
+│   ├── add_sample_data.py
+│   ├── populate_disease_data.py
+│   └── populate_historical_data.py
+│
+├── tasks/
+│   ├── celery_tasks.py
+│   └── celery_worker.py
+│
+├── results/
+│   ├── cotton/
+│   ├── potato/
+│   ├── tomato/
+│   └── growth_stage/
+│
+├── docs/
+│   ├── architecture.md
+│   ├── MODEL_VERSIONING.md
+│   ├── PDF_FEATURE_INTEGRATION.md
+│   ├── PDF_IMPLEMENTATION_SUMMARY.md
+│   ├── PDF_QUICK_START.md
+│   ├── security.md
+│   ├── model-benchmarking.md
+│   └── api-documentation.md
+│
+├── deployment/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── nginx.conf
+│   └── runtime.txt
+│
+├── tools/
+│   ├── check_quotes.py
+│   ├── check_tags.py
+│   ├── count_brackets.py
+│   └── find_unmatched.py
+│
+├── tests/
+│   ├── test_admin_auth.py
+│   ├── test_app.py
+│   ├── test_config.py
+│   ├── test_explain.py
+│   ├── test_recommendations.py
+│   ├── test_weather.py
+│   └── test_yield.py
+│
+├── client/
+├── .github/
+│
+├── run.py
 ├── requirements.txt
-└── train.py                        # Model training script
+├── requirements_minimal.txt
+├── requirements_no_versions.txt
+├── README.md
+├── LICENSE
+├── CONTRIBUTING.md
+├── Code_Of_Conduct.md
+├── .env.example
+├── .gitignore
+└── pytest.ini
 ```
 
 ---
@@ -301,14 +433,53 @@ Using Docker is the easiest way to run Agri-Vision as it avoids system dependenc
 1. Ensure you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed.
 2. Clone the repository and navigate into it:
    ```bash
-   git clone <repository-url>
-   cd <project-folder>
+  git clone <https://github.com/neeru24/Agri-Vision>
+  cd <Agri-Vision>
+  ### Create Virtual Environment
+
+```bash
+python -m venv venv
+
+
+Be careful with the markdown formatting/backticks.
+
+
+### Activate Virtual Environment
+
+For Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+For macOS/Linux:
+
+```bash
+source venv/bin/activate
+```
    ```
+
+   ### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run the Flask App
+
+```bash
+python app.py
+```
+### Open in Browser
+
+```txt
+http://127.0.0.1:5000/
+```
+
 3. Build and start the container:
    ```bash
    docker-compose up --build
-   
-```
+   ```
 4. Access the web interface at `http://localhost:5000`.
 
 ---
@@ -320,19 +491,44 @@ If you prefer to run the project natively using Python (requires Python 3.8+):
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd <project-folder>
+git clone https://github.com/neeru24/Agri-Vision.git
+cd Agri-Vision
 ```
 
-### 2️⃣ Create a `.env` File
+### 2️⃣ Create and Activate a Virtual Environment
 
-Create a `.env` file in the root directory of the project and add your secret key.
+#### macOS/Linux
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### Windows
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+
+### 3️⃣ Create a `.env` File
+
+Create a `.env` file in the project root and add a `SECRET_KEY` entry.
+
+This value is required in production—the app will not start without it. To generate a secure key locally, run:
+
+```bash
+python -c 'import secrets; print(secrets.token_urlsafe(64))'
+```
+
+Then add the generated value to `.env`:
 
 ```env
-SECRET_KEY=your_secret_key_here
+SECRET_KEY=your_generated_secret_here
 ```
 
-### 3️⃣ Install Python Dependencies
+### 4️⃣ Install Python Dependencies
 
 Install all the required Python packages using:
 
@@ -340,7 +536,7 @@ Install all the required Python packages using:
 pip install -r requirements.txt
 ```
 
-### 4️⃣ Run the Project
+### 5️⃣ Run the Project
 
 Start the application explicitly by running:
 
@@ -450,7 +646,7 @@ curl -X POST -F "file=@cotton_image.jpg" http://localhost:5000/api/analyze
 
 - 📱 Mobile application support  
 - 🎥 Real-time video analysis  
-- 🌾 Multi-crop support (🍅 Tomato crop analysis - In Progress)
+- 🌾 Multi-crop support (Cotton, Tomato, and Potato fully integrated)
 - ☁️ Weather data integration  
 - 📊 Yield prediction system  
 - 🧠 Improved AI models
@@ -500,7 +696,7 @@ Special thanks to:
 
 <div align="center">
 
-## ❤️ Made with Passion by neeru24
+## ❤️ Made with Passion by [neeru24](https://github.com/neeru24)
 
 ⭐ If you found this project helpful, consider giving it a star. ⭐
 
