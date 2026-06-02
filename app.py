@@ -1681,33 +1681,44 @@ def api_analyze_stream():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     file = request.files['file']
+    image_bytes = file.read()
     if file.filename == '':
         return jsonify({'error': 'No file selected'}), 400
     
     def generate():
         try:
-            # Send progress updates
-            yield f"data: {json.dumps({'status': 'uploading', 'progress': 25})}\n\n"
-            
-            file_bytes = np.frombuffer(file.read(), np.uint8)
-            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            yield f"data: {json.dumps({'step': 'upload_received', 'progress': 25, 'message': 'Uploading image...'})}\n\n"
+
+            image = cv2.imdecode(
+                np.frombuffer(image_bytes, np.uint8),
+                cv2.IMREAD_COLOR
+            )
+
             if image is None:
-                yield f"data: {json.dumps({'status': 'error', 'message': 'Invalid image file'})}\n\n"
+                yield f"data: {json.dumps({'step': 'error', 'progress': 0, 'message': 'Invalid image file'})}\n\n"
                 return
-            
-            yield f"data: {json.dumps({'status': 'analyzing', 'progress': 50})}\n\n"
-            
+
+            yield f"data: {json.dumps({'step': 'preprocessing', 'progress': 50, 'message': 'Analyzing crop health...'})}\n\n"
+
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = analyze_image(image_rgb)
-            
-            yield f"data: {json.dumps({'status': 'generating', 'progress': 75})}\n\n"
-            
-            yield f"data: {json.dumps({'status': 'complete', 'progress': 100, 'results': results})}\n\n"
+
+            yield f"data: {json.dumps({'step': 'recommendations', 'progress': 75, 'message': 'Generating prediction...'})}\n\n"
+
+            yield f"data: {json.dumps({'step': 'complete', 'progress': 100, 'message': 'Analysis complete', 'data': results})}\n\n"
+
         except Exception as e:
             logger.error(f"Streaming analysis error: {e}")
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-    
-    return Response(stream_with_context(generate()), mimetype='text/event-stream')
+            yield f"data: {json.dumps({'step': 'error', 'progress': 0, 'message': str(e)})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 # --- Batch Processing Endpoints ---
@@ -1764,6 +1775,10 @@ def api_batch_upload():
             import numpy as np
             for idx, (filename, image_data) in enumerate(images_data):
                 try:
+                    file.seek(0)
+                    file_bytes = file.read()
+                    image = cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
+
                     file_bytes = np.frombuffer(image_data, np.uint8)
                     image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
                     if image is not None:
@@ -2763,6 +2778,19 @@ def api_report_disease_occurrence():
         logger.error(f"Error reporting disease occurrence: {e}")
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+
+@app.route('/analyze_result', methods=['POST'])
+def analyze_result():
+    payload = request.form.get('payload')
+
+    if not payload:
+        return "No analysis data received", 400
+
+    results = json.loads(payload)
+
+    return render_template('results.html', results=results)
 
 
 if __name__ == '__main__':
