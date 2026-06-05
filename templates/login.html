@@ -222,7 +222,21 @@
             id="password"
             name="password"
             placeholder="Enter your password"
-            required>        
+            required
+        >
+
+        <i
+            id="togglePassword"
+            class="fas fa-eye"
+            style="
+                position:absolute;
+                right:15px;
+                top:50%;
+                transform:translateY(-50%);
+                cursor:pointer;
+                color:#666;
+            "
+        ></i>
     </div>
 </div>
             
@@ -245,5 +259,21 @@
             Don't have an account? <a href="{{ url_for('register') }}">Sign up</a>
         </div>
     </div>
+    <script>
+        const togglePassword = document.getElementById("togglePassword");
+        const password = document.getElementById("password");
+            
+        togglePassword.addEventListener("click", function () {
+            const type =
+                password.getAttribute("type") === "password"
+                    ? "text"
+                    : "password";
+        
+            password.setAttribute("type", type);
+        
+            this.classList.toggle("fa-eye");
+            this.classList.toggle("fa-eye-slash");
+        });
+</script>
 </body>
 </html>
