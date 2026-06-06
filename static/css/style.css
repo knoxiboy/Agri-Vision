@@ -409,7 +409,12 @@ body {
 .nav-menu {
     display: flex;
     list-style: none;
-    gap: 1.8rem;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.nav-menu li {
+    display: flex;
     align-items: center;
 }
 
@@ -420,6 +425,8 @@ body {
     font-size: 0.9rem;
     transition: var(--transition-smooth);
     opacity: 0.8;
+    display: flex;
+    align-items: center;
 }
 
 .nav-menu a:hover {
@@ -455,6 +462,7 @@ nav {
     gap: 20px;
     margin-top: 15px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 nav a {
@@ -583,6 +591,8 @@ nav a[href="/model-admin"]:hover {
     background: transparent;
     color: var(--text-color);
     cursor: pointer;
+    display: flex;
+    align-items: center;
 }
 
 .language-switcher option {
@@ -602,14 +612,95 @@ nav a[href="/model-admin"]:hover {
         opacity: 0.75;
     }
 }
-    /* Ambient blobs */
-    .hero-bg-blobs {
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        pointer-events: none;
-        z-index: 1;
+
+/* Ambient blobs */
+.hero-bg-blobs {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: {;
+    z-index: 1;
+}
+
+/* ===== HERO VISUAL HIERARCHY UPDATES ===== */
+.hero-content {
+    /* Ensure reading rhythm and avoid competing right-side attention */
+    max-width: 620px;
+}
+
+.hero-content p.hero-desc {
+    max-width: 560px;
+}
+
+
+/* Trust strip placed after CTAs to support conversion flow */
+.hero-trust {
+    margin-top: 1.3rem;
+}
+
+.trust-strip {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.trust-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 16px;
+    background: rgba(46, 139, 87, 0.07);
+    border: 1px solid rgba(46, 139, 87, 0.12);
+    color: var(--deep-forest);
+    font-weight: 700;
+    letter-spacing: -0.1px;
+}
+
+.trust-item strong {
+    font-size: 1rem;
+}
+
+.trust-item svg,
+.trust-item i {
+    color: var(--emerald-green);
+}
+
+/* CTA prominence */
+.hero-cta-primary {
+    box-shadow: 0 12px 30px rgba(46, 139, 87, 0.25);
+}
+
+.hero-cta-secondary {
+    opacity: 0.98;
+}
+
+/* Reduced motion: disable noisy animations that compete with content */
+@media (prefers-reduced-motion: reduce) {
+    .scanner-laser,
+    .floating-telemetry-1,
+    .floating-telemetry-2,
+    .typewriter span {
+        animation: none !important;
     }
+
+    html.is-animating .transition-fade,
+    html.is-leaving .transition-fade {
+        transition: none !important;
+    }
+}
+
+
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.16;
+    animation: floatBlob 20s infinite alternate ease-in-out;
+    transition: opacity 0.4s ease;
+}
 
     .blob {
         position: absolute;
@@ -777,25 +868,49 @@ nav a[href="/model-admin"]:hover {
 
     /* Typewriter */
     .typewriter {
-        display: flex;
+        display: inline-flex;
         flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
         line-height: 1.1;
-        width: 100%;
-        align-items: center;
-        justify-content: center;
     }
 
     .typewriter span {
-        display: inline-block;
+        display: block;
+        width: fit-content;
+        text-align: left;
         overflow: hidden;
         white-space: nowrap;
-        border-right: 3px solid #67e8f9;
+        border-right: 3px solid #4ade80;
+        width: 0;
     }
 
-    .typewriter .line1,
-    .typewriter .line2 {
-        border-right: 3px solid #4ade80;
+    .line1 {
+        animation:
+            typing1 1.5s steps(10, end) forwards,
+            blink .7s step-end infinite;
+    }
+
+    .line2 {
+        animation:
+            typing2 2s steps(25, end) forwards 1.6s,
+            blink .7s step-end infinite;
+    }
+
+    @keyframes typing1 {
+        from { width: 0; }
+        to { width: 8ch; } /* AI-Powered */
+    }
+
+    @keyframes typing2 {
+        from { width: 0; }
+        to { width: 16ch; } /* Cotton Crop Intelligence */
+    }
+
+    @keyframes blink {
+        50% {
+            border-color: transparent;
+        }
     }
 
     /* Hero image / scanner */
@@ -1623,7 +1738,9 @@ nav a[href="/model-admin"]:hover {
         backdrop-filter: blur(12px);
         box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
     }
-
+    .action-btn{
+    margin-top: 24px;
+}
     .result-card:hover,
     .analysis-card:hover,
     .demo-card:hover {
@@ -1883,79 +2000,7 @@ nav a[href="/model-admin"]:hover {
         font-size: 1rem;
     }
 
-    /* DASHBOARD SYSTEM */
-    .dashboard-container {
-        max-width: 1250px;
-        margin: 0 auto;
-        padding: 0 2rem;
-        width: 100%;
-    }
-
-    .dashboard-card {
-        background: var(--card-bg);
-        border-radius: 20px;
-        padding: 2rem;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--card-border);
-        transition: var(--transition-smooth);
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-
-    .dashboard-card:hover {
-        transform: translateY(-8px);
-        box-shadow: var(--card-hover-shadow);
-        border-color: rgba(46, 139, 87, 0.1);
-    }
-
-    .dashboard-metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
-        margin-bottom: 2rem;
-    }
-
-    @media (max-width: 768px) {
-        .dashboard-metrics-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .dashboard-status-bar {
-        background: var(--card-bg);
-        border-radius: 20px;
-        padding: 1.5rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        box-shadow: var(--card-shadow);
-        border: 1px solid var(--card-border);
-        animation: fadeInUp 0.5s ease;
-    }
-
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        padding-bottom: 1rem;
-    }
-
-    .dashboard-title h1 {
-        font-size: 1.8rem;
-        color: var(--deep-forest);
-        margin-bottom: 0.2rem;
-    }
-
-    .dashboard-title p {
-        color: var(--warm-earth);
-        font-size: 0.9rem;
-        opacity: 0.8;
-    }
-
+    
     /* Health status dot */
     .health-status-indicator {
         width: 12px;
@@ -2955,6 +3000,10 @@ nav a[href="/model-admin"]:hover {
         cursor: pointer;
         padding: 5px;
         transition: color 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     /* KEYFRAME ANIMATIONS */
