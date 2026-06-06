@@ -525,6 +525,11 @@ class GradCAM:
 # INFERENCE PIPELINE
 # -------------------------------------------------------------------
 def preprocess_image_for_resnet(image: np.ndarray, target_size: Tuple[int, int] = (224, 224)) -> torch.Tensor:
+    if image.ndim == 2:
+        image = np.stack([image] * 3, axis=-1)
+    elif image.ndim == 3 and image.shape[2] == 1:
+        image = np.concatenate([image] * 3, axis=-1)
+
     transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize(target_size),
