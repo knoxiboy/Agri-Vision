@@ -1439,6 +1439,106 @@ body {
     box-shadow: 0 10px 30px rgba(74, 144, 226, 0.2);
 }
 
+/*
+Analysis Action Controls Design System
+
+Purpose:
+- Improve consistency between primary and secondary actions
+- Provide clearer visual hierarchy
+- Improve accessibility
+- Improve keyboard navigation
+- Improve responsive behavior
+- Standardize spacing
+- Standardize sizing
+- Standardize icon alignment
+- Improve hover feedback
+- Improve focus visibility
+
+Buttons Covered:
+- Voice Assistant
+- Download PDF Report
+
+Issue Reference:
+#691
+*/
+
+/* 
+   Analysis Action Controls Enhancement
+   Issue #691
+ */
+
+.analysis-actions-container{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:1.2rem;
+    margin-top:2rem;
+    margin-bottom:2rem;
+    flex-wrap:wrap;
+    padding:1rem 0;
+    border-top:1px solid var(--card-border);
+}
+
+.analysis-actions-container .btn-action{
+    min-width:220px;
+    min-height:52px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:0.75rem;
+    font-weight:600;
+    border-radius:12px;
+    transition:all 0.3s ease;
+}
+
+.analysis-actions-container .btn-action i{
+    font-size:1rem;
+}
+
+.analysis-actions-container .btn-action:hover{
+    transform:translateY(-3px);
+}
+
+.analysis-actions-container .btn-action:focus{
+    outline:3px solid rgba(59,130,246,0.25);
+    outline-offset:3px;
+}
+
+.analysis-actions-container .btn-action-primary{
+    box-shadow:0 8px 20px rgba(59,130,246,0.15);
+}
+
+.analysis-actions-container .btn-action-secondary{
+    box-shadow:0 8px 20px rgba(16,185,129,0.15);
+}
+
+.analysis-actions-container .btn-action-primary:hover{
+    box-shadow:0 12px 28px rgba(59,130,246,0.25);
+}
+
+.analysis-actions-container .btn-action-secondary:hover{
+    box-shadow:0 12px 28px rgba(16,185,129,0.25);
+}
+
+.analysis-actions-container .btn-action:disabled{
+    opacity:0.6;
+    cursor:not-allowed;
+    transform:none;
+}
+
+@media(max-width:768px){
+
+    .analysis-actions-container{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .analysis-actions-container .btn-action{
+        width:100%;
+        min-width:unset;
+    }
+}
+
 .info-grid {
     margin-top: 4rem;
     display: grid;
