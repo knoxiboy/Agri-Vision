@@ -110,6 +110,29 @@ def load_user(user_id):
     from models import User
     return User.query.get(user_id)
 
+# --- Google OAuth 2.0 Configuration (issue #626) ---
+from authlib.integrations.flask_client import OAuth as _OAuth
+
+_oauth = _OAuth(app)
+_google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+_google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+if _google_client_id and _google_client_secret:
+    _oauth.register(
+        name="google",
+        client_id=_google_client_id,
+        client_secret=_google_client_secret,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+    GOOGLE_OAUTH_ENABLED = True
+    logger.info("Google OAuth 2.0 enabled.")
+else:
+    GOOGLE_OAUTH_ENABLED = False
+    logger.warning(
+        "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google OAuth disabled."
+    )
+
 from functools import wraps
 
 def api_login_required(f):
@@ -740,9 +763,19 @@ def read_validated_upload_image(file_storage) -> Tuple[str, np.ndarray, np.ndarr
         max_bytes=max_bytes,
     )
     temp_path = save_temp_upload(file_bytes, app.config["UPLOAD_TMP_DIR"], safe_filename)
+
+    try:
+        img = Image.open(BytesIO(file_bytes))
+        img.verify()
+    except Exception:
+        raise UploadValidationError(
+            "Unable to process this image. It may be corrupt or in an unsupported format.",
+            status_code=400,
+        )
+
     image = cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
     if image is None:
-        raise UploadValidationError("Invalid image file.", status_code=400)
+        raise UploadValidationError("Unable to process this image. It may be corrupt or in an unsupported format.", status_code=400)
     return safe_filename, image, cv2.cvtColor(image, cv2.COLOR_BGR2RGB), temp_path
 
 
@@ -1671,9 +1704,58 @@ def download_analysis_report():
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
 
-@app.route("/history")
-def history():
-    return render_template("history.html")
+@app.route("/compare")
+@login_required
+def compare():
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        flash("No analyses selected for comparison", "warning")
+        return redirect(url_for('history'))
+
+    analysis_ids = [aid.strip() for aid in ids_param.split(',') if aid.strip()]
+
+    from models import AnalysisHistory
+    analyses = AnalysisHistory.query.filter(
+        AnalysisHistory.id.in_(analysis_ids),
+        AnalysisHistory.user_id == current_user.id
+    ).all()
+
+    if not analyses:
+        flash("No valid analyses found", "warning")
+        return redirect(url_for('history'))
+
+    canonical_fields = [
+        ('disease', 'Detected Disease'),
+        ('growth_stage', 'Growth Stage'),
+        ('confidence', 'Confidence'),
+        ('health_score', 'Health Score'),
+        ('created_at', 'Analysis Date'),
+    ]
+
+    rows = []
+    for key, label in canonical_fields:
+        row = {"label": label, "key": key, "values": []}
+        for analysis in analyses:
+            if key == 'disease':
+                val = (analysis.disease_result or {}).get('predicted_class')
+            elif key == 'growth_stage':
+                val = (analysis.growth_result or {}).get('main_class')
+            elif key == 'confidence':
+                val = analysis.confidence
+            elif key == 'health_score':
+                val = analysis.health_score
+            elif key == 'created_at':
+                val = analysis.created_at.strftime('%Y-%m-%d %H:%M') if analysis.created_at else None
+            else:
+                val = None
+            row["values"].append(val)
+        rows.append(row)
+
+    return render_template('compare.html',
+        analyses=analyses,
+        rows=rows,
+        enumerate=enumerate,
+    )
 
 
 @app.route("/health")
@@ -1758,13 +1840,15 @@ def analyze():
                 disease_info=disease_info,
             )
         except UploadValidationError as exc:
-            logger.warning("Upload rejected: %s", exc)
+            filename = request.files.get("file", {}).filename if request.files.get("file") else "unknown"
+            logger.warning("Upload rejected (user=%s, file=%s): %s", current_user.id, filename, exc)
             if exc.status_code == 413:
                 return ("File too large", 413)
             flash(str(exc), "error")
             return redirect(request.url)
         except Exception as exc:
-            logger.error("Analysis error: %s", exc)
+            filename = request.files.get("file", {}).filename if request.files.get("file") else "unknown"
+            logger.error("Analysis error (user=%s, file=%s): %s", current_user.id, filename, exc)
             flash(f"Error during analysis: {str(exc)}", "error")
             return redirect(request.url)
         finally:
@@ -2204,10 +2288,12 @@ def api_analyze():
             
         })
     except UploadValidationError as exc:
-        logger.warning("API upload rejected: %s", exc)
+        filename = request.files.get("file", {}).filename if request.files.get("file") else "unknown"
+        logger.warning("API upload rejected (file=%s): %s", filename, exc)
         return jsonify({"error": str(exc)}), exc.status_code
     except Exception as e:
-        logger.error(f"API analysis error: {e}")
+        filename = request.files.get("file", {}).filename if request.files.get("file") else "unknown"
+        logger.error("API analysis error (file=%s): %s", filename, e)
         return jsonify({"error": str(e)}), 500
     finally:
         cleanup_temp_upload(temp_path)
@@ -2677,7 +2763,76 @@ def login():
         else:
             flash('Invalid email or password', 'danger')
     
-    return render_template('login.html')
+    return render_template('login.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
+
+
+@app.route("/auth/google")
+def auth_google():
+    """Redirect to Google's OAuth 2.0 consent screen."""
+    if not GOOGLE_OAUTH_ENABLED:
+        flash("Google Sign-In is not configured on this server.", "warning")
+        return redirect(url_for("login"))
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    return _oauth.google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    """Handle the OAuth 2.0 callback from Google."""
+    if not GOOGLE_OAUTH_ENABLED:
+        flash("Google Sign-In is not configured on this server.", "warning")
+        return redirect(url_for("login"))
+
+    try:
+        token = _oauth.google.authorize_access_token()
+        user_info = token.get("userinfo") or _oauth.google.userinfo()
+    except Exception as exc:
+        logger.warning("Google OAuth callback error: %s", exc)
+        flash("Google Sign-In failed. Please try again.", "danger")
+        return redirect(url_for("login"))
+
+    google_id = str(user_info["sub"])
+    email = user_info.get("email", "")
+    full_name = user_info.get("name", email.split("@")[0])
+    picture = user_info.get("picture", "")
+
+    from models import User
+
+    # 1. Look up by OAuth provider + ID (most reliable)
+    user = User.query.filter_by(oauth_provider="google", oauth_id=google_id).first()
+
+    # 2. Fall back to matching by email (links existing password accounts)
+    if user is None and email:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.oauth_provider = "google"
+            user.oauth_id = google_id
+            if picture:
+                user.profile_picture = picture
+
+    # 3. Auto-create a new account for first-time Google users
+    if user is None:
+        user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=None,
+            oauth_provider="google",
+            oauth_id=google_id,
+            profile_picture=picture,
+            role="farmer",
+            is_active=True,
+        )
+        db.session.add(user)
+
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    login_user(user)
+    logger.info("User %s signed in via Google OAuth.", user.email)
+    flash(f"Welcome, {user.full_name}! You are now signed in.", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -2696,20 +2851,20 @@ def register():
         # Validation
         if not full_name or not email or not password:
             flash('All fields are required', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         if password != confirm_password:
             flash('Passwords do not match', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         if len(password) < 8:
             flash('Password must be at least 8 characters', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         from models import User
         if User.query.filter_by(email=email).first():
             flash('Email already registered', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         # Create user
         user = User(
@@ -2725,7 +2880,7 @@ def register():
         flash('Account created successfully! Please login.', 'success')
         return redirect(url_for('login'))
     
-    return render_template('register.html')
+    return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
 
 
 @app.route("/logout")
