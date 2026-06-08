@@ -261,19 +261,30 @@
             <div class="form-group">
                 <label for="password">Password</label>
                 <div style="position: relative;">
-                    <input type="password" id="password" name="password" placeholder="Create a password" required
-                        oninput="checkPasswordStrength()">
 
-                    <i id="togglePassword" class="fas fa-eye" style="
-                    position:absolute;
-                    right:15px;
-                    top:50%;
-                    transform:translateY(-50%);
-                    cursor:pointer;
-                    color:#666;
-                "></i>
-                </div>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Create a password"
+                    style="padding-right: 45px;"
+                    required
+                    oninput="checkPasswordStrength()" 
+                >
 
+                <i
+                    id="togglePassword"
+                    class="fas fa-eye"
+                    style="
+                        position:absolute;
+                        right:15px;
+                        top:50%;
+                        transform:translateY(-50%);
+                        cursor:pointer;
+                        color:#666;
+                    "
+                ></i>
+            </div>
                 <div class="password-strength">
                     <div class="password-strength-bar" id="strength-bar"></div>
                 </div>
