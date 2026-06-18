@@ -37,14 +37,27 @@ def _ensure_app_context():
 
 if CELERY_AVAILABLE:
     @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-    def analyze_image_task(self, job_id: str, result_id: str, image_b64: str):
+    def analyze_image_task(self, job_id: str, result_id: str, image_name: str, image_index: int, image_b64: str):
         """Analyse one image and update DB AnalysisResult row."""
         import cv2
         import numpy as np
 
         app = _ensure_app_context()
         from app import analyze_image
-        from models import AnalysisResult, db
+        from models import AnalysisResult, db, BatchJob
+
+        image_name = "unknown"
+        image_index = 0
+
+        # Retrieve image info from pre-created AnalysisResult row
+        try:
+            with app.app_context():
+                res_row = db.session.get(AnalysisResult, result_id) if hasattr(db.session, 'get') else AnalysisResult.query.get(result_id)
+                if res_row:
+                    image_name = res_row.image_name
+                    image_index = res_row.image_index
+        except Exception as query_err:
+            logger.error(f"Error querying AnalysisResult {result_id}: {query_err}")
 
         try:
             file_bytes = base64.b64decode(image_b64)
@@ -55,41 +68,78 @@ if CELERY_AVAILABLE:
 
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = analyze_image(image_rgb)
-
-            with app.app_context():
-                res = AnalysisResult.query.get(result_id)
-                if not res:
-                    res = AnalysisResult(id=result_id, batch_job_id=job_id, image_name="unknown", image_index=0)
-                    db.session.add(res)
-
-                res.status = "complete"
-                res.results_json = results
-                disease = results.get("disease", {})
-                res.disease_class = disease.get("predicted_class")
-                res.disease_confidence = disease.get("confidence")
-                res.health_score = disease.get("health_score")
-                growth = results.get("growth", {})
-                res.growth_class = growth.get("main_class")
-                res.growth_confidence = growth.get("confidence")
-                res.error_message = None
-                db.session.commit()
-
-            return {"result_id": result_id, "status": "complete"}
-
-        except Exception as exc:
-            logger.exception("analyze_image_task failed: %s", exc)
-            app = _ensure_app_context()
-            from models import AnalysisResult, db
-            with app.app_context():
-                try:
-                    res = AnalysisResult.query.get(result_id)
-                    if res:
-                        res.status = "error"
-                        res.error_message = str(exc)
+            
+            # Save results to database
+            try:
+                with app.app_context():
+                    result = db.session.get(AnalysisResult, result_id) if hasattr(db.session, 'get') else AnalysisResult.query.get(result_id)
+                    if result:
+                        result.status = "complete"
+                        result.disease_class = results.get("disease", {}).get("predicted_class")
+                        result.disease_confidence = results.get("disease", {}).get("confidence")
+                        result.health_score = results.get("disease", {}).get("health_score")
+                        result.growth_class = results.get("growth", {}).get("main_class")
+                        result.growth_confidence = results.get("growth", {}).get("confidence")
+                        result.results_json = results
+                        
+                        job = db.session.get(BatchJob, job_id) if hasattr(db.session, 'get') else BatchJob.query.get(job_id)
+                        if job:
+                            completed_count = len([r for r in job.results if r.status in ("complete", "success")])
+                            failed_count = len([r for r in job.results if r.status == "error"])
+                            if completed_count + failed_count + 1 >= job.total_images:
+                                job.status = "completed"
+                                job.completed_at = datetime.utcnow()
                         db.session.commit()
-                except Exception:
-                    logger.exception("Failed to persist task failure for %s", result_id)
-
+            except Exception as db_err:
+                logger.error(f"Error saving analysis result to database: {db_err}")
+            
+            # Update task status to complete
+            self.update_state(
+                state='SUCCESS',
+                meta={
+                    'job_id': job_id,
+                    'image_index': image_index,
+                    'status': 'complete',
+                    'results': results
+                }
+            )
+            
+            return {
+                'image_name': image_name,
+                'image_index': image_index,
+                'status': 'complete',
+                'results': results,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing image {image_name}: {e}")
+            self.update_state(
+                state='FAILURE',
+                meta={
+                    'job_id': job_id,
+                    'image_index': image_index,
+                    'status': 'error',
+                    'error': str(e)
+                }
+            )
+            try:
+                with app.app_context():
+                    result = db.session.get(AnalysisResult, result_id) if hasattr(db.session, 'get') else AnalysisResult.query.get(result_id)
+                    if result:
+                        result.status = "error"
+                        result.error_message = str(e)
+                        
+                        job = db.session.get(BatchJob, job_id) if hasattr(db.session, 'get') else BatchJob.query.get(job_id)
+                        if job:
+                            completed_count = len([r for r in job.results if r.status in ("complete", "success")])
+                            failed_count = len([r for r in job.results if r.status == "error"])
+                            if completed_count + failed_count + 1 >= job.total_images:
+                                job.status = "completed"
+                                job.completed_at = datetime.utcnow()
+                        db.session.commit()
+            except Exception as db_err:
+                logger.error(f"Error saving failure result to database: {db_err}")
             raise
 
 
