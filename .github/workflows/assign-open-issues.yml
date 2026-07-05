@@ -1,0 +1,27 @@
+name: Assign Existing Open Issues
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  assign-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Assign all open issues to their creators
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/issues --paginate \
+            --jq '.[] | select(.pull_request | not) | select(.state == "open") | "\(.number) \(.user.login)"' |
+          while read number author; do
+            echo "Assigning issue #$number to $author"
+
+            gh api \
+              --method PATCH \
+              repos/${{ github.repository }}/issues/$number \
+              -f assignees[]="$author"
+          done
